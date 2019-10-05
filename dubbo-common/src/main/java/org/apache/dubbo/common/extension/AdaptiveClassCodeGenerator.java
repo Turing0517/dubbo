@@ -82,9 +82,15 @@ public class AdaptiveClassCodeGenerator {
     
     /**
      * generate and return class code
+     * 自适应拓展类代码生成
+     *
      */
     public String generate() {
         // no need to generate adaptive class since there's no adaptive method found.
+        /**
+         * 通过反射检测接口方法是否包含Adaptive注解，对于要生成自适应拓展的接口，Dubbo要求该接口至少有一个方法被Adaptive注解修饰。
+         * 若不满足此条件，就会抛出运行时异常。
+         */
         if (!hasAdaptiveMethod()) {
             throw new IllegalStateException("No adaptive method exist on extension " + type.getName() + ", refuse to create the adaptive class!");
         }
@@ -93,7 +99,7 @@ public class AdaptiveClassCodeGenerator {
         code.append(generatePackageInfo());
         code.append(generateImports());
         code.append(generateClassDeclaration());
-        
+        //通过反射获取所有的方法
         Method[] methods = type.getMethods();
         for (Method method : methods) {
             code.append(generateMethod(method));
