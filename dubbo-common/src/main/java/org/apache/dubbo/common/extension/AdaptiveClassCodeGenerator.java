@@ -101,6 +101,7 @@ public class AdaptiveClassCodeGenerator {
         code.append(generateClassDeclaration());
         //通过反射获取所有的方法
         Method[] methods = type.getMethods();
+        //遍历方法列表
         for (Method method : methods) {
             code.append(generateMethod(method));
         }
