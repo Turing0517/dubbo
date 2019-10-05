@@ -84,6 +84,13 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
         }
     }
 
+    /**
+     * 获取注册中心
+     * 先访问缓存，缓存未命中则调用createRegistry创建Registry，然后写入缓存。
+     * 这里的createRegistry是一个模板方法，由具体的子类实现。
+     * @param url Registry address, is not allowed to be empty
+     * @return
+     */
     @Override
     public Registry getRegistry(URL url) {
         url = URLBuilder.from(url)
@@ -95,15 +102,18 @@ public abstract class AbstractRegistryFactory implements RegistryFactory {
         // Lock the registry access process to ensure a single instance of the registry
         LOCK.lock();
         try {
+            //访问缓存
             Registry registry = REGISTRIES.get(key);
             if (registry != null) {
                 return registry;
             }
             //create registry by spi/ioc
+            //缓存未命中，创建Registry实例
             registry = createRegistry(url);
             if (registry == null) {
                 throw new IllegalStateException("Can not create registry " + url);
             }
+            //写入缓存
             REGISTRIES.put(key, registry);
             return registry;
         } finally {

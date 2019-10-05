@@ -54,7 +54,10 @@ import static org.apache.dubbo.common.constants.RegistryConstants.ROUTERS_CATEGO
 
 /**
  * ZookeeperRegistry
- *
+ *  以Zookeeper为例，所谓的服务注册，本质上是将服务配置数据写入到Zookeeper的某个路径的节点下。
+ *  例如：
+ *  com.alibaba.dubbo.demo.DemoService这个服务对应的配置信息（存储在URL中）最终被注册到了
+ *  /dubbo/com.alibaba.dubbo.demo.DemoService/provider/节点下。
  */
 public class ZookeeperRegistry extends FailbackRegistry {
 
@@ -77,12 +80,16 @@ public class ZookeeperRegistry extends FailbackRegistry {
         if (url.isAnyHost()) {
             throw new IllegalStateException("registry address == null");
         }
+        //获取组名，默认为dubbo
         String group = url.getParameter(GROUP_KEY, DEFAULT_ROOT);
         if (!group.startsWith(PATH_SEPARATOR)) {
+            // group = "/" + group
             group = PATH_SEPARATOR + group;
         }
         this.root = group;
+        //创建Zookeeper客户端，默认为CuratorZookeeperTransporter
         zkClient = zookeeperTransporter.connect(url);
+        //添加状态监听器
         zkClient.addStateListener(state -> {
             if (state == StateListener.RECONNECTED) {
                 try {
@@ -112,6 +119,12 @@ public class ZookeeperRegistry extends FailbackRegistry {
     @Override
     public void doRegister(URL url) {
         try {
+            /**
+             * 通过Zookeeper客户端创建节点，节点路径toUrlPath生成，路径格式如下：
+             *  /${group}/${serviceInterface}/providers/${url}
+             * 比如
+             *  /dubbo/org.apache.dubbo.DemoService/providers/dubbo%3A%2F%2F127.0.0.1......
+             */
             zkClient.create(toUrlPath(url), url.getParameter(DYNAMIC_KEY, true));
         } catch (Throwable e) {
             throw new RpcException("Failed to register " + url + " to zookeeper " + getUrl() + ", cause: " + e.getMessage(), e);

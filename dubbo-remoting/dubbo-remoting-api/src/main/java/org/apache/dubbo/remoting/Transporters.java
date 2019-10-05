@@ -40,6 +40,13 @@ public class Transporters {
         return bind(URL.valueOf(url), handler);
     }
 
+    /**
+     *
+     * @param url
+     * @param handlers
+     * @return
+     * @throws RemotingException
+     */
     public static Server bind(URL url, ChannelHandler... handlers) throws RemotingException {
         if (url == null) {
             throw new IllegalArgumentException("url == null");
@@ -51,8 +58,14 @@ public class Transporters {
         if (handlers.length == 1) {
             handler = handlers[0];
         } else {
+            //如果handlers元素数量大于1，则创建ChannelHandler分发器
             handler = new ChannelHandlerDispatcher(handlers);
         }
+        //获取自适应Transporter实例，并调用实例
+        /**
+         * getTransporter()方法获取的Transporter是运行时动态创建的，类名为TransporterAdaptive，也就是自适应拓展类。
+         * TransporterAdaptive会在运行时根据传入URL参数决定加载什么类型的Transporter，默认为NettyTransporter。
+         */
         return getTransporter().bind(url, handler);
     }
 

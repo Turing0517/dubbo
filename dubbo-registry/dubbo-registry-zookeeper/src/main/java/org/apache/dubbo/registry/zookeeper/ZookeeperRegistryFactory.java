@@ -26,7 +26,7 @@ import org.apache.dubbo.remoting.zookeeper.ZookeeperTransporter;
  *
  */
 public class ZookeeperRegistryFactory extends AbstractRegistryFactory {
-
+    //zookeeperTransporter由SPI在运行时注入，类型为ZookeeperTransporter$Adaptive
     private ZookeeperTransporter zookeeperTransporter;
 
     /**
@@ -39,6 +39,7 @@ public class ZookeeperRegistryFactory extends AbstractRegistryFactory {
 
     @Override
     public Registry createRegistry(URL url) {
+        //创建ZookeeperRegistry
         return new ZookeeperRegistry(url, zookeeperTransporter);
     }
 

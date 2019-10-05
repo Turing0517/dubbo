@@ -35,15 +35,30 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
         return (T) Proxy.getProxy(interfaces).newInstance(new InvokerInvocationHandler(invoker));
     }
 
+    /**
+     * JavassistProxyFactory 创建了一个继承自AbstractProxyInvoker类的匿名对象，并覆写了抽象方法doinvoke。
+     * 重写后端doinvoke逻辑比价简单，仅是将调用请求转发给Wrapper类的InvokerMethod方法。Wrapper用于"包裹"目标类
+     * Wrapper是一个抽象类，仅可通过getWrapper（Class）方法创建子类。在创建Wrapper子类的过程中，子类代码生成逻辑会
+     * 对getWrapper方法传入的Class对象进行解析，拿到诸如类方法，类成员变量等信息。以及生成invokeMethod方法代码和其他一些方法
+     * 代码。代码生成完毕 后，通过javassist生成Class对象，最后再通过反射创建Wrapper实例。
+     * @param proxy
+     * @param type
+     * @param url
+     * @param <T>
+     * @return
+     */
     @Override
     public <T> Invoker<T> getInvoker(T proxy, Class<T> type, URL url) {
         // TODO Wrapper cannot handle this scenario correctly: the classname contains '$'
+        //为目标类创建Wrapper
         final Wrapper wrapper = Wrapper.getWrapper(proxy.getClass().getName().indexOf('$') < 0 ? proxy.getClass() : type);
+        //创建匿名Invoker类对象，并实现doInvoker方法
         return new AbstractProxyInvoker<T>(proxy, type, url) {
             @Override
             protected Object doInvoke(T proxy, String methodName,
                                       Class<?>[] parameterTypes,
                                       Object[] arguments) throws Throwable {
+                //调用Wrapper的InvokerMethod方法，invokeMethod最终会调用目标方法
                 return wrapper.invokeMethod(proxy, methodName, parameterTypes, arguments);
             }
         };

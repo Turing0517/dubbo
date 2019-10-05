@@ -54,7 +54,12 @@ import static org.apache.dubbo.config.spring.util.BeanFactoryUtils.addApplicatio
 
 /**
  * ServiceFactoryBean
- *
+ *  服务导出类
+ *  Dubbo服务导出过程始于Spring容器发布刷新事件，Dubbo在接收到事件后，会立即执行服务导出逻辑。
+ *  整个逻辑大致可以分为三个部分
+ *  第一部分，是前置工作，主要用于检查参数，组装URL。
+ *  第二部分，是导出服务，包含导出服务到本地（JVM）和导出服务到远程两个过程。
+ *  第三部分，是向注册中心注册服务，用于服务发现
  * @export
  */
 public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean, DisposableBean,
@@ -105,8 +110,13 @@ public class ServiceBean<T> extends ServiceConfig<T> implements InitializingBean
         return service;
     }
 
+    /**
+     * onApplicationEvent是一个事件响应方法，该方法会在收到Spring上下文刷新事件后执行服务导出操作
+     * @param event
+     */
     @Override
     public void onApplicationEvent(ContextRefreshedEvent event) {
+        //是否已导出，是否已被取消导出（延迟导出被放到export方法中了）
         if (!isExported() && !isUnexported()) {
             if (logger.isInfoEnabled()) {
                 logger.info("The service ready on spring started. service: " + getInterface());
