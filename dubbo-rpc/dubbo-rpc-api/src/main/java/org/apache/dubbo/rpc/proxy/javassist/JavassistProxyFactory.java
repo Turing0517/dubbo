@@ -28,10 +28,18 @@ import org.apache.dubbo.rpc.proxy.InvokerInvocationHandler;
  * JavaassistRpcProxyFactory
  */
 public class JavassistProxyFactory extends AbstractProxyFactory {
-
+    /**
+     * 首先是通过Proxy的getProxy方法获取Proxy子类，然后创建InvokerInvocationHandler对象，并将该对象传给newInstance生成Proxy
+     * 实例。InvokerInvocationHandler实现自JDK的InvacationHandler接口，具体的用途是拦截接口类调用。
+     * @param invoker
+     * @param interfaces
+     * @param <T>
+     * @return
+     */
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getProxy(Invoker<T> invoker, Class<?>[] interfaces) {
+        //生成Proxy子类（Proxy是抽象类）。并调用Proxy子类的newInstance方法创建Proxy实例
         return (T) Proxy.getProxy(interfaces).newInstance(new InvokerInvocationHandler(invoker));
     }
 

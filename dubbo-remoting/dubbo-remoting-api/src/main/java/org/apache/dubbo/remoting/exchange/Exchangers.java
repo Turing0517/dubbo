@@ -107,6 +107,14 @@ public class Exchangers {
         return connect(URL.valueOf(url), handler);
     }
 
+    /**
+     * 创建普通客户端
+     * 通过SPI加载HeaderExchangeClient实例
+     * @param url
+     * @param handler
+     * @return
+     * @throws RemotingException
+     */
     public static ExchangeClient connect(URL url, ExchangeHandler handler) throws RemotingException {
         if (url == null) {
             throw new IllegalArgumentException("url == null");
@@ -115,6 +123,7 @@ public class Exchangers {
             throw new IllegalArgumentException("handler == null");
         }
         url = url.addParameterIfAbsent(Constants.CODEC_KEY, "exchange");
+        //获取Exchanger实例，默认为HeaderExchangeClient
         return getExchanger(url).connect(url, handler);
     }
 

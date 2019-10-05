@@ -47,6 +47,10 @@ import static org.apache.dubbo.common.constants.CommonConstants.COMMA_SPLIT_PATT
 
 /**
  * ReferenceFactoryBean
+ * Dubbo服务引用的时机有两个
+ * 1.是在Spring容器调用ReferenceBean的afterProperties方法时引用服务
+ * 2.是在ReferenceBean对应的服务被注入到其他类中是引用。这两个引用服务的时机区别在于，第一个是饿汉式的，第二个是懒汉式的。
+ * 默认情况下，Dubbo使用懒汉式引用服务。如果需要饿汉式，可通过配置<dubbo:reference></dubbo:reference>的init属性开启
  */
 public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean, ApplicationContextAware, InitializingBean, DisposableBean {
 
@@ -68,6 +72,19 @@ public class ReferenceBean<T> extends ReferenceConfig<T> implements FactoryBean,
         SpringExtensionFactory.addApplicationContext(applicationContext);
     }
 
+    /**
+     * 当我们的服务被注入到其他类中时，Spring 会第一时间调用 getObject 方法，并由该方法执行服务引用逻辑。
+     * 按照惯例，在进行具体工作之前，需先进行配置检查与收集工作。接着根据收集到的信息决定服务用的方式，有三种，
+     * 第一种是引用本地 (JVM) 服务，
+     * 第二是通过直连方式引用远程服务，
+     * 第三是通过注册中心引用远程服务。
+     * 不管是哪种引用方式，最后都会得到一个 Invoker 实例。如果有多个注册中心，多个服务提供者，这个时候会得到一组 Invoker 实例，
+     * 此时需要通过集群管理类 Cluster 将多个 Invoker 合并成一个实例。合并后的 Invoker 实例已经具备调用本地或远程服务的能力了，
+     * 但并不能将此实例暴露给用户使用，这会对用户业务代码造成侵入。此时框架还需要通过代理工厂类 (ProxyFactory) 为服务接口生成代理类，
+     * 并让代理类去调用 Invoker 逻辑。避免了 Dubbo 框架代码对业务代码的侵入，同时也让框架更容易使用。
+     * 该方法定义在Spring的FactoryBean接口中，ReferenceBean实现了这个方法
+     * @return
+     */
     @Override
     public Object getObject() {
         return get();

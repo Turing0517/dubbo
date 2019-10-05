@@ -36,6 +36,12 @@ public class HeaderExchanger implements Exchanger {
 
     @Override
     public ExchangeClient connect(URL url, ExchangeHandler handler) throws RemotingException {
+        /** 这里包含了多个调用，分别如下：
+         *  1.创建HeaderExchangeHandler对象
+         *  2.创建DecodeHandler对象
+         *  3.通过Transporters构建Client实例
+         *  4.创建HeaderExchangeClient对象
+         */
         return new HeaderExchangeClient(Transporters.connect(url, new DecodeHandler(new HeaderExchangeHandler(handler))), true);
     }
 

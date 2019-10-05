@@ -83,8 +83,10 @@ public class Transporters {
         } else if (handlers.length == 1) {
             handler = handlers[0];
         } else {
+            //如果handler数量大于1，则创建一个ChannelHandler分发器
             handler = new ChannelHandlerDispatcher(handlers);
         }
+        //获取Transporter自适应拓展类，并调用connect方法生成Client实例
         return getTransporter().connect(url, handler);
     }
 
