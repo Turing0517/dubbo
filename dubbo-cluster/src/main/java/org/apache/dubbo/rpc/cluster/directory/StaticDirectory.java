@@ -30,10 +30,12 @@ import java.util.List;
 
 /**
  * StaticDirectory
+ * 静态服务目录
+ * 内部存放的Invoker是不会变动弄个的
  */
 public class StaticDirectory<T> extends AbstractDirectory<T> {
     private static final Logger logger = LoggerFactory.getLogger(StaticDirectory.class);
-
+    //Invoker列表
     private final List<Invoker<T>> invokers;
 
     public StaticDirectory(List<Invoker<T>> invokers) {
@@ -58,15 +60,17 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
 
     @Override
     public Class<T> getInterface() {
+        //获取接口类
         return invokers.get(0).getInterface();
     }
-
+    //检测服务目录是否可用
     @Override
     public boolean isAvailable() {
         if (isDestroyed()) {
             return false;
         }
         for (Invoker<T> invoker : invokers) {
+            //只要有一个Invoker是可用的，就认为当前目录是可用的
             if (invoker.isAvailable()) {
                 return true;
             }
@@ -79,7 +83,9 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
         if (isDestroyed()) {
             return;
         }
+        //调用父类销毁逻辑
         super.destroy();
+        //遍历Invoker列表，并执行相应的销毁逻辑
         for (Invoker<T> invoker : invokers) {
             invoker.destroy();
         }
@@ -91,10 +97,11 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
         routerChain.setInvokers(invokers);
         this.setRouterChain(routerChain);
     }
-
+    //列举Invoker
     @Override
     protected List<Invoker<T>> doList(Invocation invocation) throws RpcException {
         List<Invoker<T>> finalInvokers = invokers;
+        //判断是否进行路由
         if (routerChain != null) {
             try {
                 finalInvokers = routerChain.route(getConsumerUrl(), invocation);
@@ -102,6 +109,7 @@ public class StaticDirectory<T> extends AbstractDirectory<T> {
                 logger.error("Failed to execute router: " + getUrl() + ", cause: " + t.getMessage(), t);
             }
         }
+        //返回结果
         return finalInvokers == null ? Collections.emptyList() : finalInvokers;
     }
 
