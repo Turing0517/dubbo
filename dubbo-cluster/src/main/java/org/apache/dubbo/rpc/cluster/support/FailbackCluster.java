@@ -23,7 +23,7 @@ import org.apache.dubbo.rpc.cluster.Directory;
 
 /**
  * {@link FailbackClusterInvoker}
- *
+ *  失败自动恢复
  */
 public class FailbackCluster implements Cluster {
 

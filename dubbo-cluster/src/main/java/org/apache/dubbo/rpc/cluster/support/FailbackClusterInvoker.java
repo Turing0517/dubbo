@@ -45,6 +45,8 @@ import static org.apache.dubbo.rpc.cluster.Constants.FAIL_BACK_TASKS_KEY;
  * Especially useful for services of notification.
  *
  * <a href="http://en.wikipedia.org/wiki/Failback">Failback</a>
+ * FailbackClusterInvoker会在调用失败后，返回一个空结果给服务提供者。并通过定时任务对失败的调用进行重传，
+ * 适合执行消息通知等操作。
  */
 public class FailbackClusterInvoker<T> extends AbstractClusterInvoker<T> {
 
@@ -77,6 +79,7 @@ public class FailbackClusterInvoker<T> extends AbstractClusterInvoker<T> {
         if (failTimer == null) {
             synchronized (this) {
                 if (failTimer == null) {
+                    //创建失败记录定时任务类HashedWheelTimer，
                     failTimer = new HashedWheelTimer(
                             new NamedThreadFactory("failback-cluster-timer", true),
                             1,
@@ -84,25 +87,40 @@ public class FailbackClusterInvoker<T> extends AbstractClusterInvoker<T> {
                 }
             }
         }
+        //创建重试时间任务
         RetryTimerTask retryTimerTask = new RetryTimerTask(loadbalance, invocation, invokers, lastInvoker, retries, RETRY_FAILED_PERIOD);
         try {
+            //添加重试任务到定时任务中
             failTimer.newTimeout(retryTimerTask, RETRY_FAILED_PERIOD, TimeUnit.SECONDS);
         } catch (Throwable e) {
             logger.error("Failback background works error,invocation->" + invocation + ", exception: " + e.getMessage());
         }
     }
 
+    /**
+     * 首先是doInvoker,该方法负责初次的远程调用。若远程调用失败，则通过addFailed方法将调用信息存入到failed中，等待定时重试。
+     * @param invocation
+     * @param invokers
+     * @param loadbalance
+     * @return
+     * @throws RpcException
+     */
     @Override
     protected Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         Invoker<T> invoker = null;
         try {
             checkInvokers(invokers, invocation);
+            //选择Invoker
             invoker = select(loadbalance, invocation, invokers, null);
+            //进行调用
             return invoker.invoke(invocation);
         } catch (Throwable e) {
+            //如果调用过程中发生了异常，此时仅打印错误日志不抛出异常
             logger.error("Failback to invoke method " + invocation.getMethodName() + ", wait for retry in background. Ignored exception: "
                     + e.getMessage() + ", ", e);
+            //记录调用信息
             addFailed(loadbalance, invocation, invokers, invoker);
+            //返回一个默认异步结果，自动重试，有结果后可以取到结果
             return AsyncRpcResult.newDefaultAsyncResult(null, null, invocation); // ignore
         }
     }
@@ -139,14 +157,19 @@ public class FailbackClusterInvoker<T> extends AbstractClusterInvoker<T> {
         @Override
         public void run(Timeout timeout) {
             try {
+                //选择重试Invoker
                 Invoker<T> retryInvoker = select(loadbalance, invocation, invokers, Collections.singletonList(lastInvoker));
+                //设置最新的Invoker
                 lastInvoker = retryInvoker;
+                //进行重试
                 retryInvoker.invoke(invocation);
             } catch (Throwable e) {
                 logger.error("Failed retry to invoke method " + invocation.getMethodName() + ", waiting again.", e);
+                //次数超过重试次数
                 if ((++retryTimes) >= retries) {
                     logger.error("Failed retry times exceed threshold (" + retries + "), We have to abandon, invocation->" + invocation);
                 } else {
+                    //否则重新放入
                     rePut(timeout);
                 }
             }
@@ -161,7 +184,7 @@ public class FailbackClusterInvoker<T> extends AbstractClusterInvoker<T> {
             if (timer.isStop() || timeout.isCancelled()) {
                 return;
             }
-
+            //重新创建timeout
             timer.newTimeout(timeout.task(), tick, TimeUnit.SECONDS);
         }
     }

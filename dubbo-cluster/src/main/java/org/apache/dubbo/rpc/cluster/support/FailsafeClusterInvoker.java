@@ -33,7 +33,8 @@ import java.util.List;
  * Usually used to write audit logs and other operations
  *
  * <a href="http://en.wikipedia.org/wiki/Fail-safe">Fail-safe</a>
- *
+ * FailsafeClusterInvoker是一种失败安全的Cluster Invoker。所谓的失败安全是指，当调用过程中出现异常时，FailsafeClusterInvoker仅
+ * 会打印异常，而不会抛出异常。适用于写入审计日志等操作。
  */
 public class FailsafeClusterInvoker<T> extends AbstractClusterInvoker<T> {
     private static final Logger logger = LoggerFactory.getLogger(FailsafeClusterInvoker.class);
@@ -46,10 +47,13 @@ public class FailsafeClusterInvoker<T> extends AbstractClusterInvoker<T> {
     public Result doInvoke(Invocation invocation, List<Invoker<T>> invokers, LoadBalance loadbalance) throws RpcException {
         try {
             checkInvokers(invokers, invocation);
+            //选择Invoker
             Invoker<T> invoker = select(loadbalance, invocation, invokers, null);
+            //进行远程调用
             return invoker.invoke(invocation);
         } catch (Throwable e) {
             logger.error("Failsafe ignore exception: " + e.getMessage(), e);
+            //返回异步结果
             return AsyncRpcResult.newDefaultAsyncResult(null, null, invocation); // ignore
         }
     }
