@@ -76,24 +76,32 @@ public class DubboInvoker<T> extends AbstractInvoker<T> {
     protected Result doInvoke(final Invocation invocation) throws Throwable {
         RpcInvocation inv = (RpcInvocation) invocation;
         final String methodName = RpcUtils.getMethodName(invocation);
+        //设置path和version到attachment中
         inv.setAttachment(PATH_KEY, getUrl().getPath());
         inv.setAttachment(VERSION_KEY, version);
 
         ExchangeClient currentClient;
         if (clients.length == 1) {
+            //从clients数组中获取ExchangeClient
             currentClient = clients[0];
         } else {
             currentClient = clients[index.getAndIncrement() % clients.length];
         }
         try {
+            //isOneway为true，表示"单向"通信
             boolean isOneway = RpcUtils.isOneway(getUrl(), invocation);
             int timeout = getUrl().getMethodParameter(methodName, TIMEOUT_KEY, DEFAULT_TIMEOUT);
+            //异步无返回值
             if (isOneway) {
                 boolean isSent = getUrl().getMethodParameter(methodName, Constants.SENT_KEY, false);
+                //发送请求
                 currentClient.send(inv, isSent);
+                //设置上下文中future字段为null
                 RpcContext.getContext().setFuture(null);
+                //返回默认结果
                 return AsyncRpcResult.newDefaultAsyncResult(invocation);
             } else {
+                //同步或异步有返回
                 AsyncRpcResult asyncRpcResult = new AsyncRpcResult(inv);
                 CompletableFuture<Object> responseFuture = currentClient.request(inv, timeout);
                 asyncRpcResult.subscribeTo(responseFuture);

@@ -92,27 +92,30 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
     public Object decode(Channel channel, InputStream input) throws IOException {
         ObjectInput in = CodecSupport.getSerialization(channel.getUrl(), serializationType)
                 .deserialize(channel.getUrl(), input);
-
+        //通过反序列化得到dubbo version ，并保存到attachments变量中
         String dubboVersion = in.readUTF();
         request.setVersion(dubboVersion);
         setAttachment(DUBBO_VERSION_KEY, dubboVersion);
-
+        //通过反序列化得到path，verison，并保存到attachments变量中
         setAttachment(PATH_KEY, in.readUTF());
         setAttachment(VERSION_KEY, in.readUTF());
-
+        //通过反序列化得到调用方法名
         setMethodName(in.readUTF());
         try {
             Object[] args;
             Class<?>[] pts;
+            //通过反序列化得到参数类型字符串，比如：Ljava/lang/String
             String desc = in.readUTF();
             if (desc.length() == 0) {
                 pts = DubboCodec.EMPTY_CLASS_ARRAY;
                 args = DubboCodec.EMPTY_OBJECT_ARRAY;
             } else {
+                //将desc解析为参数类型数组
                 pts = ReflectUtils.desc2classArray(desc);
                 args = new Object[pts.length];
                 for (int i = 0; i < args.length; i++) {
                     try {
+                        //解析运行时参数
                         args[i] = in.readObject(pts[i]);
                     } catch (Exception e) {
                         if (log.isWarnEnabled()) {
@@ -121,22 +124,25 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
                     }
                 }
             }
+            //设置参数类型数组
             setParameterTypes(pts);
-
+            //通过反序列化得到原attachment的内容
             Map<String, String> map = (Map<String, String>) in.readObject(Map.class);
             if (map != null && map.size() > 0) {
                 Map<String, String> attachment = getAttachments();
                 if (attachment == null) {
                     attachment = new HashMap<String, String>();
                 }
+                //将map与当前对象中的attachment集合进行融合
                 attachment.putAll(map);
                 setAttachments(attachment);
             }
             //decode argument ,may be callback
+            //对callback类型的参数进行处理
             for (int i = 0; i < args.length; i++) {
                 args[i] = decodeInvocationArgument(channel, this, pts, i, args[i]);
             }
-
+            //设置参数列表
             setArguments(args);
 
         } catch (ClassNotFoundException e) {

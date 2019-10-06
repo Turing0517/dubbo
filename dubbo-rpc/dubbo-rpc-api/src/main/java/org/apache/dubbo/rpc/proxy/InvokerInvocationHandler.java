@@ -39,9 +39,11 @@ public class InvokerInvocationHandler implements InvocationHandler {
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         String methodName = method.getName();
         Class<?>[] parameterTypes = method.getParameterTypes();
+        //拦截定义在Object类中的方法（未被子类重写），比如 wait/notify
         if (method.getDeclaringClass() == Object.class) {
             return method.invoke(invoker, args);
         }
+        //如果toString，hashCode 和equal等方法被子类重写，这里也直接调用
         if ("toString".equals(methodName) && parameterTypes.length == 0) {
             return invoker.toString();
         }
@@ -51,7 +53,7 @@ public class InvokerInvocationHandler implements InvocationHandler {
         if ("equals".equals(methodName) && parameterTypes.length == 1) {
             return invoker.equals(args[0]);
         }
-
+        //将method和args封装到RpcInvocation中，并执行后续的调用
         return invoker.invoke(new RpcInvocation(method, args)).recreate();
     }
 }

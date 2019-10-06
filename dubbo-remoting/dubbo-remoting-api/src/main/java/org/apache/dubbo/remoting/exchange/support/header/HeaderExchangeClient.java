@@ -41,6 +41,7 @@ import static org.apache.dubbo.remoting.Constants.TICKS_PER_WHEEL;
 
 /**
  * DefaultMessageClient
+ * HeaderExchangeClient主要是封装了一些关于心跳检测的逻辑
  */
 public class HeaderExchangeClient implements ExchangeClient {
 
@@ -55,10 +56,12 @@ public class HeaderExchangeClient implements ExchangeClient {
     public HeaderExchangeClient(Client client, boolean startTimer) {
         Assert.notNull(client, "Client can't be null");
         this.client = client;
+        //创建HeaderExchangeChannel对象
         this.channel = new HeaderExchangeChannel(client);
 
         if (startTimer) {
             URL url = client.getUrl();
+            //心跳检测相关
             startReconnectTask(url);
             startHeartBeatTask(url);
         }
@@ -196,10 +199,11 @@ public class HeaderExchangeClient implements ExchangeClient {
     }
 
     private void doClose() {
+        //停止心跳检测
         if (heartBeatTimerTask != null) {
             heartBeatTimerTask.cancel();
         }
-
+        //停止重连
         if (reconnectTimerTask != null) {
             reconnectTimerTask.cancel();
         }

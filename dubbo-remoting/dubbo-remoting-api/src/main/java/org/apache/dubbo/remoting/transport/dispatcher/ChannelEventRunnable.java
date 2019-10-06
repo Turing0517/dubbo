@@ -21,6 +21,11 @@ import org.apache.dubbo.common.logger.LoggerFactory;
 import org.apache.dubbo.remoting.Channel;
 import org.apache.dubbo.remoting.ChannelHandler;
 
+/**
+ * 请求和响应消息出现频率明显比其他类型消息高，所以这里对该类型的消息进行了针对性判断。
+ * ChannelEventRunnable 仅是一个中转站，它的 run 方法中并不包含具体的调用逻辑，
+ * 仅用于将参数传给其他 ChannelHandler 对象进行处理，该对象类型为 DecodeHandler。
+ */
 public class ChannelEventRunnable implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(ChannelEventRunnable.class);
 
@@ -52,14 +57,17 @@ public class ChannelEventRunnable implements Runnable {
 
     @Override
     public void run() {
+        //检测通道状态，对于请求或响应消息，此时state = RECEIVED
         if (state == ChannelState.RECEIVED) {
             try {
+                //将channel和Message传给ChannelHandler对象，进行后续调用
                 handler.received(channel, message);
             } catch (Exception e) {
                 logger.warn("ChannelEventRunnable handle " + state + " operation error, channel is " + channel
                         + ", message is " + message, e);
             }
         } else {
+            //其他消息类型通过switch进行处理
             switch (state) {
             case CONNECTED:
                 try {

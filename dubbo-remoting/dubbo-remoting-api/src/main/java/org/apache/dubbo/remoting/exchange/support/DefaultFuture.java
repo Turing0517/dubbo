@@ -41,6 +41,12 @@ import static org.apache.dubbo.common.constants.CommonConstants.TIMEOUT_KEY;
 
 /**
  * DefaultFuture.
+ * 一般情况下，服务消费方会并发调用多个服务，每个用户线程发送请求后，会调用不同 DefaultFuture 对象的 get 方法进行等待。
+ * 一段时间后，服务消费方的线程池会收到多个响应对象。这个时候要考虑一个问题，如何将每个响应对象传递给相应的 DefaultFuture 对象，且不出错。
+ * 答案是通过调用编号。DefaultFuture 被创建时，会要求传入一个 Request 对象。
+ * 此时 DefaultFuture 可从 Request 对象中获取调用编号，并将 <调用编号, DefaultFuture 对象> 映射关系存入到静态 Map 中，即 FUTURES。
+ *线程池中的线程在收到 Response 对象后，会根据 Response 对象中的调用编号到 FUTURES 集合中取出相应的 DefaultFuture 对象，
+ * 然后再将 Response 对象设置到 DefaultFuture 对象中。最后再唤醒用户线程，这样用户线程即可从 DefaultFuture 对象中获取调用结果了。
  */
 public class DefaultFuture extends CompletableFuture<Object> {
 
@@ -67,9 +73,11 @@ public class DefaultFuture extends CompletableFuture<Object> {
     private DefaultFuture(Channel channel, Request request, int timeout) {
         this.channel = channel;
         this.request = request;
+        //获取请求id,这个id很重要，后面会用到
         this.id = request.getId();
         this.timeout = timeout > 0 ? timeout : channel.getUrl().getPositiveParameter(TIMEOUT_KEY, DEFAULT_TIMEOUT);
         // put into waiting map.
+        //存储<requestId,DefualtFuture>映射关系到FUTURES中
         FUTURES.put(id, this);
         CHANNELS.put(id, channel);
     }
@@ -143,6 +151,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
 
     public static void received(Channel channel, Response response, boolean timeout) {
         try {
+            // 根据调用编号从 FUTURES 集合中查找指定的 DefaultFuture 对象
             DefaultFuture future = FUTURES.remove(response.getId());
             if (future != null) {
                 Timeout t = future.timeoutCheckTask;
@@ -150,6 +159,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
                     // decrease Time
                     t.cancel();
                 }
+                // 继续向下调用
                 future.doReceived(response);
             } else {
                 logger.warn("The timeout response finally returned at "
@@ -183,6 +193,7 @@ public class DefaultFuture extends CompletableFuture<Object> {
         if (res == null) {
             throw new IllegalStateException("response cannot be null");
         }
+        //如果调用结果的状态为Response.OK，则表示调用过程正常，服务提供方成功返回了调用结果
         if (res.getStatus() == Response.OK) {
             this.complete(res.getResult());
         } else if (res.getStatus() == Response.CLIENT_TIMEOUT || res.getStatus() == Response.SERVER_TIMEOUT) {

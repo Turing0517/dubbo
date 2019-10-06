@@ -22,6 +22,7 @@ import org.apache.dubbo.remoting.Dispatcher;
 
 /**
  * default thread pool configure
+ * 默认配置下Dubbo使用all派发策略，即将所有的消息都派发到线程池中
  */
 public class AllDispatcher implements Dispatcher {
 
